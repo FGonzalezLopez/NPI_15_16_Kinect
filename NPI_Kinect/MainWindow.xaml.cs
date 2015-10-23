@@ -25,12 +25,12 @@ namespace NPI_Kinect
         /// <summary>
         /// Difficulty factor, defaulting at 1.6
         /// </summary>
-        private float difficultyFactor = 1.6f;
+        private float difficultyFactor;
 
         /// <summary>
         /// Error margin (%)
         /// </summary>
-        private float errorMargin = 0.2f;
+        private float errorMargin;
 
 
         //Global program control variables *******************************************************************
@@ -231,6 +231,14 @@ namespace NPI_Kinect
             // Display the drawing using our image control
             Skeleton.Source = this.imageSource;
 
+            
+
+            //Set the difficulty and error margins to their defaults upon opening the program
+            this.inputBoxError.Text = "0.2";
+            this.inputBoxDifficulty.Text = "1.6";
+            // Update error margin and difficulty to their defaults
+            this.updateParameters();
+
             // Look through all sensors and start the first connected one.
             // This requires that a Kinect is connected at the time of app startup.
             // To make your app robust against plug/unplug, 
@@ -327,9 +335,6 @@ namespace NPI_Kinect
                         0);
                 }
             }
-            // We are also going to update the info. texts here
-            this.difficultyText.Text = "Dificult.: " + this.difficultyFactor.ToString() ;
-            this.errorMarginText.Text = "M.Error: " + this.errorMargin.ToString();
         }
 
         /// <summary>
@@ -426,7 +431,7 @@ namespace NPI_Kinect
         //Utility functions***********************
 
         /// <summary>
-        /// Checks if the user's head can be tracked
+        /// Checks if the user's hands can be tracked above his or her head
         /// </summary>
         /// <param name="skeleton">skeleton for reference</param>
         private bool minDistance(Skeleton skeleton)
@@ -459,12 +464,18 @@ namespace NPI_Kinect
             //We will ask the person to back up until the position is correct
             this.pushPromptToReposition();
         }
+        /// <summary>
+        /// Prompts the user to position properly
+        /// </summary>
         private void pushPromptToReposition()
         {
             this.outOfPlaceWarn.Text = "Estás fuera de la zona de actividad.\nPor favor, aléjate con las manos encima de\nla cabeza hasta que quepan cómodamente\nen la pantalla para ser reconocido";
             this.outOfPlace_bar.Background = new SolidColorBrush(Colors.Red);
             this.instructionsText.Text = "";
         }
+        /// <summary>
+        /// Hides the reposition prompt
+        /// </summary>
         private void popPromtToReposition()
         {
             this.outOfPlaceWarn.Text = "";
@@ -472,7 +483,7 @@ namespace NPI_Kinect
         }
 
         /// <summary>
-        /// Checks if the user's head can be tracked
+        /// Checks if the user's hands are above his head
         /// </summary>
         /// <param name="skeleton">skeleton for reference</param>
         private bool areHandsAboveHead(Skeleton skeleton)
@@ -788,5 +799,54 @@ namespace NPI_Kinect
 
             drawingContext.DrawLine(drawPen, this.SkeletonPointToScreen(joint0.Position), this.SkeletonPointToScreen(joint1.Position));
         }
+
+        public void updateParameters()
+        {
+            if (!String.IsNullOrEmpty(this.inputBoxError.Text))
+            {
+                this.errorMargin = float.Parse(this.inputBoxError.Text);
+
+                //The error margin will be limited between 0.1 and 0.9
+                if (this.errorMargin > 0.9)
+                    this.errorMargin = 0.9f;
+                else if (this.errorMargin < 0.1)
+                    this.errorMargin = 0.1f;
+
+                this.inputBoxError.Text = this.errorMargin.ToString();
+            }
+            if (!String.IsNullOrEmpty(this.inputBoxDifficulty.Text))
+            {
+                this.difficultyFactor = float.Parse(this.inputBoxDifficulty.Text);
+
+                //The difficulty factor will be limited between 1 and 2
+                if (this.difficultyFactor > 2)
+                    this.difficultyFactor = 2f;
+                else if (this.difficultyFactor < 1)
+                    this.difficultyFactor = 1f;
+
+                this.inputBoxDifficulty.Text = this.difficultyFactor.ToString();
+            }
+        }
+
+        //As seen in the reference from the comment... http://stackoverflow.com/questions/816334/wpf-a-textbox-that-has-an-event-that-fires-when-the-enter-key-is-pressed
+        private void TextBox_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key != System.Windows.Input.Key.Enter) return;
+
+            // your event handler here
+            this.updateParameters();
+
+            e.Handled = true;
+        }
+
+        private void inputBoxError_TextChanged(object sender, TextChangedEventArgs e)
+        {
+        }
+
+        private void inputBoxDifficulty_TextChanged(object sender, TextChangedEventArgs e)
+        {
+        }
+
+
     }
 }
