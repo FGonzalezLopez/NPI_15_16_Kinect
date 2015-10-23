@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="NPI_Kinect_basicRecognition" Height="450" Width="672"  Loaded="WindowLoaded" Closing="WindowClosing">
     <Grid Name="mainGrid">
-        <Grid Name="ImageGrid" Margin="0,0,0,96">
+        <Grid Name="ImageGrid">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -13,11 +13,19 @@
             <Image Name="Image"/>
             <Image x:Name="Skeleton" />
         </Grid>
-        <StatusBar HorizontalAlignment="Stretch" Name="statusBar" VerticalAlignment="Bottom" Background="Red" Foreground="Black" Height="42" Margin="0,0,0,49">
-            <TextBlock x:Name="instructionsText" HorizontalAlignment="Stretch" Height="36" Width="664" FontSize="20" > Texto de prueba</TextBlock>
-        </StatusBar>
-        <StatusBar HorizontalAlignment="Stretch" x:Name="statusBar_Copy" VerticalAlignment="Bottom" Background="Red" Foreground="Black" Height="42" Margin="0,0,0,10">
-            <TextBlock x:Name="positionCuesHelp" HorizontalAlignment="Stretch" Height="36" Width="664" FontSize="20" ><Run Text="Texto de prueba"/></TextBlock>
-        </StatusBar>
+        <Grid>
+            <StatusBar HorizontalAlignment="Stretch" Name="statusBar" VerticalAlignment="Bottom" Background="BlueViolet" Foreground="Black" Height="66" Margin="0,0,264,0">
+                <TextBlock x:Name="instructionsText" HorizontalAlignment="Stretch" Height="56" FontWeight="Bold" Width="400" FontSize="18" ></TextBlock>
+            </StatusBar>
+            <StatusBar HorizontalAlignment="Right" x:Name="statusBar_Difficulty" VerticalAlignment="Bottom" Background="Aquamarine" Foreground="Black" Height="33" Margin="540,0,-5,0">
+                <TextBlock x:Name="difficultyText" HorizontalAlignment="Left" Height="33" Width="120" FontSize="20" FontWeight="Bold" RenderTransformOrigin="0.499,0.588" ><Run Language="en-gb" Text="Dificult.: "/><LineBreak/><Run Language="en-gb" Text=""/></TextBlock>
+            </StatusBar>
+            <StatusBar HorizontalAlignment="Right" x:Name="statusBar_ErrorMargin" VerticalAlignment="Bottom"  Background="Aquamarine" Foreground="Black" Height="33" Margin="540,0,-5,33">
+                <TextBlock x:Name="errorMarginText" HorizontalAlignment="Left" FontWeight="Bold"  Height="36" Width="120" FontSize="20" RenderTransformOrigin="0.499,0.588" ><Run Language="en-gb" Text="M.Error: "/><LineBreak/><Run Language="en-gb" Text=""/></TextBlock>
+            </StatusBar>
+            <StatusBar HorizontalAlignment="Center" x:Name="outOfPlace_bar" VerticalAlignment="Center" Background="Red" Foreground="Black" Height="116" Margin="136,113,140,190">
+                <TextBlock x:Name="outOfPlaceWarn" HorizontalAlignment="Center" Height="116" FontWeight="Bold" Width="387" FontSize="18" ><Run Text="Estás fuera de"/><Run Language="en-gb" Text=" la zona de actividad."/><LineBreak/><Run Language="en-gb" Text="Por favor, aléjate con las manos encima de"/><LineBreak/><Run Language="en-gb" Text=" la cabeza hasta que quepan cómodamente"/><LineBreak/><Run Language="en-gb" Text=" en la pantalla"/></TextBlock>
+            </StatusBar>
+        </Grid>
     </Grid>
 </Window>

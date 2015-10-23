@@ -32,6 +32,9 @@ namespace NPI_Kinect
         /// </summary>
         private float errorMargin = 0.2f;
 
+
+        //Global program control variables *******************************************************************
+
         /// <summary>
         /// Variables to track a max of 2 movements' length
         /// </summary>
@@ -41,6 +44,18 @@ namespace NPI_Kinect
         /// Variables to hold a max of 2 positions through calls
         /// </summary>
         private SkeletonPoint lastPosition1, lastPosition2;
+
+        /// <summary>
+        /// Second status track of the movement routine
+        /// </summary>
+        private bool end = false;
+
+        /// <summary>
+        /// Second status track of the movement routine
+        /// </summary>
+        private bool isPositionedCorrectly = false;
+
+        //******************************************************************************************************
 
         /// <summary>
         /// Pen used for drawing visual cues for unachieved motions
@@ -71,11 +86,6 @@ namespace NPI_Kinect
         /// First status track of the movement routine
         /// </summary>
         private bool poseAchieved=false;
-
-        /// <summary>
-        /// Second status track of the movement routine
-        /// </summary>
-        private bool end = false;
 
 
         /// <summary>
@@ -317,6 +327,9 @@ namespace NPI_Kinect
                         0);
                 }
             }
+            // We are also going to update the info. texts here
+            this.difficultyText.Text = "Dificult.: " + this.difficultyFactor.ToString() ;
+            this.errorMarginText.Text = "M.Error: " + this.errorMargin.ToString();
         }
 
         /// <summary>
@@ -372,7 +385,7 @@ namespace NPI_Kinect
         }
 
         /// <summary>
-        /// Detects the desired position
+        /// Pose+gesture movement routine
         /// </summary>
         /// <param name="skeleton">skeleton for reference</param>
         /// <param name="drawingContext">drawing context to draw to</param>
@@ -384,17 +397,20 @@ namespace NPI_Kinect
                 this.setDistance(skeleton);
             // If the user is at the desired distance, we will start giving cues to position him or her in the first static position, until he or she reaches it
             else if (!this.poseAchieved)
+            {
+                // We remove the reposition prompt
+                this.popPromtToReposition();
                 this.poseAchieved = this.pose_HoldHandsUp(skeleton, drawingContext);
+            }
             //Then, while the user doesn't break gesture, which we will consider to be lowering the hands below head joint height
             else if (this.areHandsAboveHead(skeleton) && !this.end)
             {
                 //Once the user achieves the position, we will ask the user to make a gesture
                 //It will involve raising his hands roughly twice the distance between his head and chest joints
-                if (this.end = this.gesture_RaiseHands(skeleton, drawingContext))
-                    this.positionCuesHelp.Text = "Gesto completado!**********************************************************************";
+                this.end = this.gesture_RaiseHands(skeleton, drawingContext);
             }
             //If the user breaks gesture (hands below head) or finishes the gesture, the cycle resets, again to a static position
-            else if (this.end)
+            else
             {
                 this.poseAchieved = false;
                 travelledDistance1 = 0.0f;
@@ -415,17 +431,24 @@ namespace NPI_Kinect
         /// <param name="skeleton">skeleton for reference</param>
         private bool minDistance(Skeleton skeleton)
         {
-            bool res = false;
+            bool res = true;
 
-            //Inefficient way, a more direct one not involving going through every joint is preferred
-            if (skeleton.Joints[JointType.Head].TrackingState.Equals(JointTrackingState.Tracked))
-                res = true;
-            /*foreach (Joint joint in skeleton.Joints)
+            // If both hands are being tracked
+            res = res && skeleton.Joints[JointType.HandLeft].TrackingState.Equals(JointTrackingState.Tracked);
+            res = res && skeleton.Joints[JointType.HandRight].TrackingState.Equals(JointTrackingState.Tracked);
+
+            //If some of the hands is not being tracked, we reset everything and ask the user to reposition again
+            if (!res)
             {
-                if (joint.JointType.Equals(JointType.Head) && joint.TrackingState.Equals(JointTrackingState.Tracked))
-                    res = true;
-            }*/
-            return res;
+                this.isPositionedCorrectly = false;
+                this.end = true;
+            }
+
+            // Check if the hands are above the head and the user was not properly positioned, he will be asked to position correctly
+            if(res && !this.isPositionedCorrectly)
+                res= res && this.areHandsAboveHead(skeleton);
+
+            return this.isPositionedCorrectly=res;
         }
         /// <summary>
         /// Leads the user to a distance from which his or her arms can be seen on the sensor even while raised
@@ -433,9 +456,21 @@ namespace NPI_Kinect
         /// <param name="skeleton">skeleton for reference</param>
         private void setDistance(Skeleton skeleton)
         {
-            //We will ask the person to back up until the head is being tracked
-            this.instructionsText.Text = "Aléjate del sensor hasta que tu cabeza entre cómodamente en su rango";
+            //We will ask the person to back up until the position is correct
+            this.pushPromptToReposition();
         }
+        private void pushPromptToReposition()
+        {
+            this.outOfPlaceWarn.Text = "Estás fuera de la zona de actividad.\nPor favor, aléjate con las manos encima de\nla cabeza hasta que quepan cómodamente\nen la pantalla para ser reconocido";
+            this.outOfPlace_bar.Background = new SolidColorBrush(Colors.Red);
+            this.instructionsText.Text = "";
+        }
+        private void popPromtToReposition()
+        {
+            this.outOfPlaceWarn.Text = "";
+            this.outOfPlace_bar.Background = new SolidColorBrush(Colors.Transparent);
+        }
+
         /// <summary>
         /// Checks if the user's head can be tracked
         /// </summary>
@@ -467,7 +502,7 @@ namespace NPI_Kinect
         private bool pose_HoldHandsUp(Skeleton skeleton, DrawingContext dc)
         {
             // We give the instructions
-            this.instructionsText.Text = "Mantén tus brazos paralelos al suelo y sube las manos";
+            this.instructionsText.Text = "Mantén tus brazos paralelos al suelo\n y sube las manos hasta las marcas rojas";
 
             //Radius at wich the hands are considered to be in place
             float detectionRadius = 0.11f;
@@ -576,6 +611,8 @@ namespace NPI_Kinect
         /// <returns>ture if the pose is achieved, false otherwise</returns>
         private bool gesture_RaiseHands(Skeleton skeleton, DrawingContext dc)
         {
+            // Ask the user to make the movement
+            this.instructionsText.Text = "Ahora, lleva tus manos hacia arriba";
             //Booleans to mark the completion status of each hand separately
             bool left=false,right=false;
 
