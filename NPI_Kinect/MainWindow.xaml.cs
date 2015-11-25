@@ -46,6 +46,11 @@ namespace NPI_Kinect
         private int menuNumber = 0;
 
         /// <summary>
+        /// Variable to track the menu current selection ( doesn't actually choose anything, it is only made effective once the "up arrow" is selected)
+        /// </summary>
+        private int menuSelection = 0;
+
+        /// <summary>
         /// Variables to hold a max of 2 positions through calls
         /// </summary>
         private SkeletonPoint lastPosition1, lastPosition2;
@@ -80,9 +85,25 @@ namespace NPI_Kinect
         //******************************************************************************************************
 
         /// <summary>
-        /// Pen used for drawing visual cues for unachieved motions
+        /// Imagen of a leftward arrow
         /// </summary>
-        private readonly Pen variableColorPen = new Pen(new SolidColorBrush(Color.FromRgb(255, 255, 255)), 10);
+        private ImageSource arrowLeftward;
+
+        /// <summary>
+        /// Imagen of a rightward arrow
+        /// </summary>
+        private ImageSource arrowRightward;
+
+        /// <summary>
+        /// Imagen of a upward arrow
+        /// </summary>
+        private ImageSource arrowUpward;
+
+
+        /// <summary>
+        /// Brush used for drawing visual cues for unachieved motions
+        /// </summary>
+        //private Brush variableColorPen = new Pen(new SolidColorBrush(Color.FromRgb(255, 255, 255)), 10);
 
         /// <summary>
         /// Pen used for drawing visual cues for unachieved motions
@@ -258,6 +279,9 @@ namespace NPI_Kinect
             // Display the drawing using our image control
             Skeleton.Source = this.imageSource;
 
+            //Initialize the images
+            this.initializeImages();
+            
 
 
             //Set the difficulty and error margins to their defaults upon opening the program
@@ -265,6 +289,7 @@ namespace NPI_Kinect
             this.difficultyFactor = 1.6f;
             this.inputBoxError.Text = this.errorMargin.ToString();
             this.inputBoxDifficulty.Text = this.difficultyFactor.ToString();
+            this.menuNumber = 0;
             // Update error margin and difficulty to their defaults
             this.updateParameters();
 
@@ -340,6 +365,16 @@ namespace NPI_Kinect
             {
                 this.sensor.Stop();
             }
+        }
+
+        /// <summary>
+        /// Initializes image brushes (arrows)
+        /// </summary>
+        private void initializeImages()
+        {
+            this.arrowLeftward = new BitmapImage(new Uri(@"C:\Users\NotPotato\Pictures\arrow_left.png", UriKind.Relative));
+            this.arrowRightward =new BitmapImage(new Uri(@"C:\Users\NotPotato\Pictures\arrow_right.png", UriKind.Relative));
+            this.arrowUpward = new BitmapImage(new Uri(@"C:\Users\NotPotato\Pictures\arrow_up.png", UriKind.Relative));
         }
 
         /// <summary>
@@ -435,12 +470,13 @@ namespace NPI_Kinect
                      skeleton.Joints[JointType.HandRight].TrackingState.Equals(JointTrackingState.NotTracked) )
             {
                 this.menuNumber = 0;
+                this.pushPromptToReposition();
             }
             // If the menu number is 0, we show the menu
             else if (this.menuNumber == 0)
             {
                 this.popPromtToReposition();
-                //this.optionMenu();
+                this.optionMenu(skeleton, drawingContext);
             }
             // If the menu number is not 0, we close the menu and call the adecuate routine
             else
@@ -461,20 +497,95 @@ namespace NPI_Kinect
                         break;
                 }
             }
-            /*
-            //If the user breaks gesture (hands below head) or finishes the gesture, the cycle resets, again to a static position
-            else
+            
+
+        }
+
+        
+
+        /// <summary>
+        /// Close the menu and do the initial setup tasks for a routine tracking
+        /// </summary>
+        private void optionMenu(Skeleton skeleton, DrawingContext drawingContext)
+        {
+            // Show the menu visuals
+            //...
+            SkeletonPoint rightArrowPosition, leftArrowPosition, upArrowPosition;
+            Point leftArrowPoint, rightArrowPoint, upArrowPoint;
+            float arrowBoxSize = 100;
+
+            // For the upwards arrow we take a base height of head, and then add the head to chest height
+            upArrowPosition = skeleton.Joints[JointType.Head].Position;
+            upArrowPosition.Y += (skeleton.Joints[JointType.Head].Position.Y - skeleton.Joints[JointType.ShoulderCenter].Position.Y);
+
+            // We take a base height halfway between hip and head for the left/right arrows
+            rightArrowPosition = skeleton.Joints[JointType.HipCenter].Position;
+            rightArrowPosition.Y += (skeleton.Joints[JointType.Head].Position.Y - skeleton.Joints[JointType.HipCenter].Position.Y) / 2;
+
+            leftArrowPosition = rightArrowPosition;
+
+            // Then move the x component of the position a distance around the spine's lenght (hip to head distance)
+            float arrowLateralOffset;
+            arrowLateralOffset = skeleton.Joints[JointType.Head].Position.Y - skeleton.Joints[JointType.HipCenter].Position.Y;
+
+            rightArrowPosition.X += arrowLateralOffset;
+            leftArrowPosition.X -= arrowLateralOffset;
+
+            leftArrowPoint = this.SkeletonPointToScreen(rightArrowPosition);
+            rightArrowPoint = this.SkeletonPointToScreen(leftArrowPosition);
+            upArrowPoint = this.SkeletonPointToScreen(upArrowPosition);
+
+            // We compensate for the fact that the arrows are painted using the point as the upper left corner
+            leftArrowPoint.X -= arrowBoxSize / 2;
+            leftArrowPoint.Y -= arrowBoxSize / 2;
+
+            rightArrowPoint.X -= arrowBoxSize / 2;
+            rightArrowPoint.Y -= arrowBoxSize / 2;
+
+            upArrowPoint.X -= arrowBoxSize / 2;
+            upArrowPoint.Y -= arrowBoxSize / 2;
+
+
+            drawingContext.DrawImage(this.arrowRightward, new Rect( rightArrowPoint, new Size(arrowBoxSize, arrowBoxSize)));
+            drawingContext.DrawImage(this.arrowLeftward, new Rect( leftArrowPoint, new Size(arrowBoxSize,arrowBoxSize)));
+            drawingContext.DrawImage(this.arrowUpward, new Rect( upArrowPoint, new Size(arrowBoxSize, arrowBoxSize)));
+
+            // Then we pass the skeleton, dc, and positions of the arrows (their centers) to the routine that detects the choice and draws a cue
+            int action = detectSelectionMenu(skeleton, drawingContext, leftArrowPoint, rightArrowPoint, upArrowPoint);
+
+            // The user chose left
+            if(action == 1)
             {
-                this.poseAchieved = false;
-                travelledDistance1 = 0.0f;
-                travelledDistance2 = 0.0f;
-                this.end = false;
+
+            }
+            // The user chose right
+            else if (action == 2)
+            {
+
+            }
+            // The user chose the current movement
+            else if (action == 3)
+            {
+                // Make the menu change effective
+
             }
 
-            //Update the last hands' positions
-            this.lastPosition1 = skeleton.Joints[JointType.HandLeft].Position;
-            this.lastPosition2 = skeleton.Joints[JointType.HandRight].Position;
-            */
+            this.instructionsText.Text="Estas en el menu principal";
+           
+
+        }
+
+
+        /// <summary>
+        /// Detects the motion of the user and translates it to a menu action, being 
+        /// </summary>
+        private int detectSelectionMenu(Skeleton skeleton, DrawingContext drawingContext, Point leftArrowPoint, Point rightArrowPoint, Point upArrowPoint)
+        {
+            int res = 0;
+            //First, we check if a hand has moved enough to qualify as the user choosing the current option
+            //if()
+
+            return res;
         }
 
         /// <summary>
@@ -484,7 +595,7 @@ namespace NPI_Kinect
         {
             // Clear the menu visuals
             //...
-            //...
+            //no need :D
             
 
             //Reset the tracking parameters
@@ -496,26 +607,6 @@ namespace NPI_Kinect
             this.travelledDistance2 = 0;
 
             this.repetitionCount = 0;
-
-            
-
-            // There is no need to update the last positions or the 
-
-            
-            /*
-            //If the user breaks gesture (hands below head) or finishes the gesture, the cycle resets, again to a static position
-            else
-            {
-                this.poseAchieved = false;
-                travelledDistance1 = 0.0f;
-                travelledDistance2 = 0.0f;
-                this.end = false;
-            }
-
-            //Update the last hands' positions
-            this.lastPosition1 = skeleton.Joints[JointType.HandLeft].Position;
-            this.lastPosition2 = skeleton.Joints[JointType.HandRight].Position;
-            */
         }
 
 
@@ -571,24 +662,27 @@ namespace NPI_Kinect
         /// <param name="skeleton">skeleton for reference</param>
         private bool minDistance(Skeleton skeleton)
         {
-            bool res = true;
+            bool positionCorrect = false;
 
-            // If both hands are being tracked
-            res = res && skeleton.Joints[JointType.HandLeft].TrackingState.Equals(JointTrackingState.Tracked);
-            res = res && skeleton.Joints[JointType.HandRight].TrackingState.Equals(JointTrackingState.Tracked);
+            // Logic changed, now is true if either hand is untracked to make the app less jittery
+            positionCorrect = positionCorrect || skeleton.Joints[JointType.HandLeft].TrackingState.Equals(JointTrackingState.NotTracked);
+            positionCorrect = positionCorrect || skeleton.Joints[JointType.HandRight].TrackingState.Equals(JointTrackingState.NotTracked);
 
-            //If some of the hands is not being tracked, we reset everything and ask the user to reposition again
-            if (!res)
+            //If any of the hands is not being tracked, we reset everything and ask the user to reposition again, and go back to the menu
+            if (positionCorrect)
             {
                 this.isPositionedCorrectly = false;
                 this.menuNumber = 0;
             }
 
-            // Check if the hands are above the head and the user was not properly positioned, he will be asked to position correctly
-            if(res && !this.isPositionedCorrectly)
-                res= res && this.areHandsAboveHead(skeleton);
+            // Invert the value to be congruent with the former logic
+            positionCorrect = !positionCorrect;
 
-            return this.isPositionedCorrectly=res;
+            // Check if the hands are above the head and the user was not properly positioned, he will be asked to position correctly
+            if(positionCorrect && !this.isPositionedCorrectly)
+                positionCorrect= positionCorrect && this.areHandsAboveHead(skeleton);
+
+            return this.isPositionedCorrectly=positionCorrect;
         }
         /// <summary>
         /// Leads the user to a distance from which his or her arms can be seen on the sensor even while raised
@@ -609,8 +703,7 @@ namespace NPI_Kinect
             this.outOfPlace_bar.Background = new SolidColorBrush(Colors.Red);
             this.instructionsText.Text = "";
 
-            
-            this.outOfPlaceWarn.Visibility = Visibility.Visible;
+            this.outOfPlace_bar.Visibility = Visibility.Visible;
         }
         /// <summary>
         /// Hides the reposition prompt
