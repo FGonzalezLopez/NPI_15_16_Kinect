@@ -48,7 +48,7 @@ namespace NPI_Kinect
         /// <summary>
         /// Variable to track the menu current selection ( doesn't actually choose anything, it is only made effective once the "up arrow" is selected)
         /// </summary>
-        private int menuSelection = 0;
+        private int menuSelection = 1;
 
         /// <summary>
         /// Size of the circular queue for the options menu
@@ -319,8 +319,10 @@ namespace NPI_Kinect
             //Set the difficulty and error margins to their defaults upon opening the program
             this.errorMargin = 0.2f;
             this.difficultyFactor = 1.6f;
+            this.targetRepetitions = 5;
             this.inputBoxError.Text = this.errorMargin.ToString();
             this.inputBoxDifficulty.Text = this.difficultyFactor.ToString();
+            this.inputBoxMaxReps.Text = this.targetRepetitions.ToString();
             this.menuNumber = 0;
             // Update error margin and difficulty to their defaults
             this.updateParameters();
@@ -508,14 +510,13 @@ namespace NPI_Kinect
             else if (this.menuNumber == 0)
             {
                 this.popPromtToReposition();
+                this.repetitionCount = 0;
+                this.updateRepetitionCount();
                 this.optionMenu(skeleton, drawingContext);
             }
             // If the menu number is not 0, we close the menu and call the adecuate routine
             else
             {
-                //Close the menu
-                this.closeMenu();
-
                 switch (this.menuNumber)
                 {
                     case 1:
@@ -617,7 +618,7 @@ namespace NPI_Kinect
             else if (this.menuSelection > menuOptionsCount)
                 this.menuSelection = 1;
 
-            this.instructionsText.Text = "Opción del menú: " + this.menuNumber.ToString() ;
+            this.instructionsText.Text = "Opción del menú: " + this.menuSelection.ToString() ;
            
         }
 
@@ -800,7 +801,7 @@ namespace NPI_Kinect
         /// <summary>
         /// Close the menu and do the initial setup tasks for a routine tracking
         /// </summary>
-        private void closeMenu()
+        private void resetParameters()
         {
 
             //Reset the tracking parameters
@@ -810,8 +811,6 @@ namespace NPI_Kinect
 
             this.travelledDistance1 = 0;
             this.travelledDistance2 = 0;
-
-            this.repetitionCount = 0;
         }
 
 
@@ -838,9 +837,14 @@ namespace NPI_Kinect
                 this.gestureCompleted = this.gesture_RaiseHands(skeleton, drawingContext);
             }
             // If the user finishes the gesture, the cycle resets, again to the static position
-            else if (gestureCompleted && (repetitionCount < this.targetRepetitions))
+            else if (this.gestureCompleted && (repetitionCount < this.targetRepetitions))
             {
                 this.repetitionCount++;
+                this.updateRepetitionCount();
+
+                //Reset the routine control parameters
+                this.resetParameters();
+
                 // Once the target reps. are achieved, go back to the menu
                 if (this.repetitionCount == this.targetRepetitions)
                     this.menuNumber = 0;
@@ -860,6 +864,16 @@ namespace NPI_Kinect
         }
 
         //Utility functions***********************
+
+
+
+        /// <summary>
+        /// Updates the repetition count's box text
+        /// </summary>
+        private void updateRepetitionCount()
+        {
+            this.CurrentRepsText.Text = "Actuales: " + this.repetitionCount.ToString();
+        }
 
         /// <summary>
         /// Checks if the user's hands can be tracked above his or her head
@@ -1238,6 +1252,9 @@ namespace NPI_Kinect
             drawingContext.DrawLine(drawPen, this.SkeletonPointToScreen(joint0.Position), this.SkeletonPointToScreen(joint1.Position));
         }
 
+        /// <summary>
+        /// Updates the difficulty setting, the error margin and the target rep. counter
+        /// </summary>
         public void updateParameters()
         {
             if (!String.IsNullOrEmpty(this.inputBoxError.Text))
@@ -1252,6 +1269,7 @@ namespace NPI_Kinect
 
                 this.inputBoxError.Text = this.errorMargin.ToString();
             }
+
             if (!String.IsNullOrEmpty(this.inputBoxDifficulty.Text))
             {
                 this.difficultyFactor = float.Parse(this.inputBoxDifficulty.Text);
@@ -1264,6 +1282,19 @@ namespace NPI_Kinect
 
                 this.inputBoxDifficulty.Text = this.difficultyFactor.ToString();
             }
+
+            if (!String.IsNullOrEmpty(this.inputBoxMaxReps.Text))
+            {
+                this.targetRepetitions = int.Parse(this.inputBoxMaxReps.Text);
+
+                //The max reps will be between 20 and 3
+                if (this.targetRepetitions > 20)
+                    this.targetRepetitions = 20;
+                else if (this.targetRepetitions < 3)
+                    this.targetRepetitions = 3;
+
+                this.inputBoxMaxReps.Text = this.targetRepetitions.ToString();
+            }
         }
 
         //As seen in the reference from the comment... http://stackoverflow.com/questions/816334/wpf-a-textbox-that-has-an-event-that-fires-when-the-enter-key-is-pressed
@@ -1275,6 +1306,11 @@ namespace NPI_Kinect
             this.updateParameters();
 
             e.Handled = true;
+        }
+
+        private void inputBoxError_Copy_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
         }
 
         private void inputBoxError_TextChanged(object sender, TextChangedEventArgs e)

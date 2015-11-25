@@ -23,11 +23,22 @@
             <StatusBar HorizontalAlignment="Right" x:Name="statusBar_ErrorMargin" VerticalAlignment="Bottom"  Background="Aquamarine" Foreground="Black" Height="33" Margin="0,0,0,33">
                 <TextBlock x:Name="errorMarginText" HorizontalAlignment="Right" FontWeight="Bold"  Height="36" Width="120" FontSize="20" RenderTransformOrigin="0.499,0.588" ><Run Language="en-gb" Text="M.Error: "/><LineBreak/><Run Language="en-gb" Text=""/></TextBlock>
             </StatusBar>
+            <StatusBar HorizontalAlignment="Right" x:Name="statusBar_RepDisplay" VerticalAlignment="Bottom"  Background="Aquamarine" Foreground="Black" Height="33" Margin="0,0,131,0" Width="133">
+                <TextBlock x:Name="RepDisplayText" HorizontalAlignment="Right" FontWeight="Bold"  Height="36" Width="87" FontSize="20" RenderTransformOrigin="0.499,0.588" ><Run Text="Objetivo:"/><Run Text=" "/><LineBreak/><Run Text=""/></TextBlock>
+                <TextBox x:Name="inputBoxReps" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Aquamarine" BorderBrush="Black" BorderThickness="4" KeyUp="TextBox_KeyUp" Height="29" Width="32"/>
+            </StatusBar>
             <StatusBar HorizontalAlignment="Center" x:Name="outOfPlace_bar" VerticalAlignment="Center" Background="Red" Foreground="Black" Height="116" Margin="136,113,140,190">
                 <TextBlock x:Name="outOfPlaceWarn" HorizontalAlignment="Center" Height="116" FontWeight="Bold" Width="387" FontSize="20" ><Run Text="Estás fuera de"/><Run Language="en-gb" Text=" la zona de actividad."/><LineBreak/><Run Language="en-gb" Text="Por favor, aléjate con las manos encima de"/><LineBreak/><Run Language="en-gb" Text=" la cabeza hasta que quepan cómodamente"/><LineBreak/><Run Language="en-gb" Text=" en la pantalla"/></TextBlock>
             </StatusBar>
         </Grid>
         <TextBox x:Name="inputBoxDifficulty" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Aquamarine" BorderBrush="Black" BorderThickness="4" KeyUp="TextBox_KeyUp" Height="29" Width="32"/>
         <TextBox Name="inputBoxError" Margin="0,0,0,34" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Aquamarine" BorderBrush="Black" BorderThickness="4" KeyUp="TextBox_KeyUp" Height="29" Width="32"/>
+        <StatusBar HorizontalAlignment="Right" x:Name="statusBar_RepDisplayCurrent" VerticalAlignment="Bottom"  Background="Aquamarine" Foreground="Black" Height="33" Margin="0,0,126,33" Width="138">
+            <TextBlock x:Name="CurrentRepsText" HorizontalAlignment="Right" FontWeight="Bold"  Height="33" Width="128" FontSize="20" RenderTransformOrigin="0.499,0.588" ><Run Text="Actuales: "/><Run Text=" "/><LineBreak/><Run Text=""/></TextBlock>
+        </StatusBar>
+        <StatusBar HorizontalAlignment="Right" x:Name="statusBar_RepDisplay_Copy" VerticalAlignment="Bottom"  Background="Aquamarine" Foreground="Black" Height="33" Margin="0,0,126,0" Width="138">
+            <TextBlock x:Name="MaxRepDisplay" HorizontalAlignment="Right" FontWeight="Bold"  Height="36" Width="87" FontSize="20" RenderTransformOrigin="0.499,0.588" ><Run Text="Objetivo:"/><Run Text=" "/><LineBreak/><Run Text=""/></TextBlock>
+            <TextBox x:Name="inputBoxMaxReps" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Aquamarine" BorderBrush="Black" BorderThickness="4" KeyUp="TextBox_KeyUp" Height="27" Width="32"/>
+        </StatusBar>
     </Grid>
 </Window>
