@@ -10,8 +10,10 @@ NPI_Kinect/App.config
 NPI_Kinect/bin
 NPI_Kinect/obj
 NPI_Kinect/Properties
+NPI_Kinect/NPI_Kinect.csproj.user
 NPI_Kinect.sln
 NPI_Kinect.v11.suo
+.vs
 
 
 # Recycle Bin used on file shares

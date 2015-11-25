@@ -41,21 +41,48 @@ namespace NPI_Kinect
         private float travelledDistance1 = 0.0f, travelledDistance2 = 0.0f;
 
         /// <summary>
+        /// Variable to track the menu status (0 meaning show menu, 1,2,3... meaning each option)
+        /// </summary>
+        private int menuNumber = 0;
+
+        /// <summary>
         /// Variables to hold a max of 2 positions through calls
         /// </summary>
         private SkeletonPoint lastPosition1, lastPosition2;
 
         /// <summary>
-        /// Second status track of the movement routine
+        /// Tracks wether a exercise routine is finished
         /// </summary>
-        private bool end = false;
+        private bool endRoutine = false;
 
         /// <summary>
-        /// Second status track of the movement routine
+        /// Tracks wether the user is positioned correctly
         /// </summary>
         private bool isPositionedCorrectly = false;
 
+        // Variables to track the state of each individual routine
+
+        /// <summary>
+        /// Tracks
+        /// </summary>
+        private bool gestureCompleted = false;
+
+        /// <summary>
+        /// Repetition count for the exercise
+        /// </summary>
+        private int repetitionCount = 0;
+
+        /// <summary>
+        /// Repetition target count for the exercises
+        /// </summary>
+        private int targetRepetitions = 10;
+
         //******************************************************************************************************
+
+        /// <summary>
+        /// Pen used for drawing visual cues for unachieved motions
+        /// </summary>
+        private readonly Pen variableColorPen = new Pen(new SolidColorBrush(Color.FromRgb(255, 255, 255)), 10);
 
         /// <summary>
         /// Pen used for drawing visual cues for unachieved motions
@@ -92,7 +119,7 @@ namespace NPI_Kinect
         /// Width of output drawing
         /// </summary>
         private const float RenderWidth = 640.0f;
-
+        
         /// <summary>
         /// Height of our output drawing
         /// </summary>
@@ -231,11 +258,13 @@ namespace NPI_Kinect
             // Display the drawing using our image control
             Skeleton.Source = this.imageSource;
 
-            
+
 
             //Set the difficulty and error margins to their defaults upon opening the program
-            this.inputBoxError.Text = "0.2";
-            this.inputBoxDifficulty.Text = "1.6";
+            this.errorMargin = 0.2f;
+            this.difficultyFactor = 1.6f;
+            this.inputBoxError.Text = this.errorMargin.ToString();
+            this.inputBoxDifficulty.Text = this.difficultyFactor.ToString();
             // Update error margin and difficulty to their defaults
             this.updateParameters();
 
@@ -369,8 +398,8 @@ namespace NPI_Kinect
                         if (skel.TrackingState == SkeletonTrackingState.Tracked)
                         {
                             this.DrawBonesAndJoints(skel, dc);
-                            //Aquí vamos a añadir la llamada a la función para dibujar las marcas de posición y gestos
-                            this.movementRoutine(skel, dc);
+                            //Ahora vamos a llamar a la función de menú principal, enviándo el esqueleto y el draw. context
+                            this.menuRoutine(skel, dc);
                         }
                         else if (skel.TrackingState == SkeletonTrackingState.PositionOnly)
                         {
@@ -390,30 +419,49 @@ namespace NPI_Kinect
         }
 
         /// <summary>
-        /// Pose+gesture movement routine
+        /// Menu to choose exercise
         /// </summary>
         /// <param name="skeleton">skeleton for reference</param>
         /// <param name="drawingContext">drawing context to draw to</param>
-        private void movementRoutine(Skeleton skeleton, DrawingContext drawingContext)
+        private void menuRoutine(Skeleton skeleton, DrawingContext drawingContext)
         {
             // We assume that the skeleton is being correctly tracked, as this is called from within that condition
             // We will now check the person's position and make the required corrections
             if (!minDistance(skeleton))
                 this.setDistance(skeleton);
-            // If the user is at the desired distance, we will start giving cues to position him or her in the first static position, until he or she reaches it
-            else if (!this.poseAchieved)
+            //If either hand go untracked, we restart and go back to the menu
+            else if( skeleton.Joints[JointType.HandLeft].TrackingState.Equals(JointTrackingState.NotTracked) 
+                    ||
+                     skeleton.Joints[JointType.HandRight].TrackingState.Equals(JointTrackingState.NotTracked) )
             {
-                // We remove the reposition prompt
+                this.menuNumber = 0;
+            }
+            // If the menu number is 0, we show the menu
+            else if (this.menuNumber == 0)
+            {
                 this.popPromtToReposition();
-                this.poseAchieved = this.pose_HoldHandsUp(skeleton, drawingContext);
+                //this.optionMenu();
             }
-            //Then, while the user doesn't break gesture, which we will consider to be lowering the hands below head joint height
-            else if (this.areHandsAboveHead(skeleton) && !this.end)
+            // If the menu number is not 0, we close the menu and call the adecuate routine
+            else
             {
-                //Once the user achieves the position, we will ask the user to make a gesture
-                //It will involve raising his hands roughly twice the distance between his head and chest joints
-                this.end = this.gesture_RaiseHands(skeleton, drawingContext);
+                //Close the menu
+                this.closeMenu();
+
+                switch (this.menuNumber)
+                {
+                    case 1:
+                        this.movementRoutine_1(skeleton, drawingContext);
+                        break;
+                    //... rest of routines
+
+                    //Should any problem appear, go back to the menu
+                    default:
+                        this.menuNumber = 0;
+                        break;
+                }
             }
+            /*
             //If the user breaks gesture (hands below head) or finishes the gesture, the cycle resets, again to a static position
             else
             {
@@ -424,6 +472,93 @@ namespace NPI_Kinect
             }
 
             //Update the last hands' positions
+            this.lastPosition1 = skeleton.Joints[JointType.HandLeft].Position;
+            this.lastPosition2 = skeleton.Joints[JointType.HandRight].Position;
+            */
+        }
+
+        /// <summary>
+        /// Close the menu and do the initial setup tasks for a routine tracking
+        /// </summary>
+        private void closeMenu()
+        {
+            // Clear the menu visuals
+            //...
+            //...
+            
+
+            //Reset the tracking parameters
+            this.poseAchieved = false;
+            this.endRoutine = false;
+            this.gestureCompleted = false;
+
+            this.travelledDistance1 = 0;
+            this.travelledDistance2 = 0;
+
+            this.repetitionCount = 0;
+
+            
+
+            // There is no need to update the last positions or the 
+
+            
+            /*
+            //If the user breaks gesture (hands below head) or finishes the gesture, the cycle resets, again to a static position
+            else
+            {
+                this.poseAchieved = false;
+                travelledDistance1 = 0.0f;
+                travelledDistance2 = 0.0f;
+                this.end = false;
+            }
+
+            //Update the last hands' positions
+            this.lastPosition1 = skeleton.Joints[JointType.HandLeft].Position;
+            this.lastPosition2 = skeleton.Joints[JointType.HandRight].Position;
+            */
+        }
+
+
+
+        /// <summary>
+        /// Pose+gesture movement routine
+        /// </summary>
+        /// <param name="skeleton">skeleton for reference</param>
+        /// <param name="drawingContext">drawing context to draw to</param>
+        private void movementRoutine_1(Skeleton skeleton, DrawingContext drawingContext)
+        {
+            // While the initial pose is not achieved, we check for it
+            if (!this.poseAchieved)
+            {
+                this.poseAchieved = this.pose_HoldHandsUp(skeleton, drawingContext);
+                //Set the gesture completion to false
+                this.gestureCompleted = false;
+            }
+            //Then, while the user doesn't break gesture, which we will consider to be lowering the hands below head joint height
+            else if (this.areHandsAboveHead(skeleton) && !this.gestureCompleted)
+            {
+                //Once the user achieves the position, we will ask the user to make a gesture
+                //It will involve raising his hands roughly twice the distance between his head and chest joints
+                this.gestureCompleted = this.gesture_RaiseHands(skeleton, drawingContext);
+            }
+            // If the user finishes the gesture, the cycle resets, again to the static position
+            else if (gestureCompleted && (repetitionCount < this.targetRepetitions))
+            {
+                this.repetitionCount++;
+                // Once the target reps. are achieved, go back to the menu
+                if (this.repetitionCount == this.targetRepetitions)
+                    this.menuNumber = 0;
+            }
+            // The user has broken gesture, we reset the pose and gesture completion parameters
+            else
+            {
+                this.poseAchieved = false;
+                travelledDistance1 = 0.0f;
+                travelledDistance2 = 0.0f;
+                this.gestureCompleted = false;
+            }
+
+            //Update the hands' last positions
             this.lastPosition1 = skeleton.Joints[JointType.HandLeft].Position;
             this.lastPosition2 = skeleton.Joints[JointType.HandRight].Position;
         }
@@ -446,7 +581,7 @@ namespace NPI_Kinect
             if (!res)
             {
                 this.isPositionedCorrectly = false;
-                this.end = true;
+                this.menuNumber = 0;
             }
 
             // Check if the hands are above the head and the user was not properly positioned, he will be asked to position correctly
@@ -469,16 +604,21 @@ namespace NPI_Kinect
         /// </summary>
         private void pushPromptToReposition()
         {
-            this.outOfPlaceWarn.Text = "Estás fuera de la zona de actividad.\nPor favor, aléjate con las manos encima de\nla cabeza hasta que quepan cómodamente\nen la pantalla para ser reconocido";
+            
+            //this.outOfPlaceWarn.Text = "Estás fuera de la zona de actividad.\nPor favor, aléjate con las manos encima de\nla cabeza hasta que quepan cómodamente\nen la pantalla para ser reconocido";
             this.outOfPlace_bar.Background = new SolidColorBrush(Colors.Red);
             this.instructionsText.Text = "";
+
+            
+            this.outOfPlaceWarn.Visibility = Visibility.Visible;
         }
         /// <summary>
         /// Hides the reposition prompt
         /// </summary>
         private void popPromtToReposition()
         {
-            this.outOfPlaceWarn.Text = "";
+            this.outOfPlace_bar.Visibility = Visibility.Collapsed;
+            //this.outOfPlaceWarn.Text = "";
             this.outOfPlace_bar.Background = new SolidColorBrush(Colors.Transparent);
         }
 
