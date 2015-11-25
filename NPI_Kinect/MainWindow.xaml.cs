@@ -82,6 +82,26 @@ namespace NPI_Kinect
         /// </summary>
         private int targetRepetitions = 10;
 
+        /// <summary>
+        /// Timer for various time counts
+        /// </summary>
+        private System.Windows.Forms.Timer timer1;
+
+        /// <summary>
+        /// Indicates towards which option is the timer counting, 1 left 2 right 3 up
+        /// </summary>
+        private int timerTarget=0;
+
+        /// <summary>
+        /// Indicates wether a countdown has finished. Must be set to false before calling timer.start()
+        /// </summary>
+        private bool countDownFinished = false;
+
+        /// <summary>
+        /// Indicates the time the user has to maintain a position for an action to occur (3s)
+        /// </summary>
+        private int waitingTime = 0;
+        
         //******************************************************************************************************
 
         /// <summary>
@@ -101,9 +121,9 @@ namespace NPI_Kinect
 
 
         /// <summary>
-        /// Brush used for drawing visual cues for unachieved motions
+        /// Brush used for drawing visual cues to indicate a wait
         /// </summary>
-        //private Brush variableColorPen = new Pen(new SolidColorBrush(Color.FromRgb(255, 255, 255)), 10);
+        private readonly Brush waitingBrush = new SolidColorBrush(Color.FromRgb(0, 0, 255));
 
         /// <summary>
         /// Pen used for drawing visual cues for unachieved motions
@@ -281,6 +301,13 @@ namespace NPI_Kinect
 
             //Initialize the images
             this.initializeImages();
+
+            // Initialize the timer
+            this.waitingTime = 3000;
+            this.timer1 = new System.Windows.Forms.Timer();
+            this.timer1.Tick += new EventHandler(timer1_Tick);
+            this.timer1.Interval = this.waitingTime;
+
             
 
 
@@ -528,8 +555,8 @@ namespace NPI_Kinect
             float arrowLateralOffset;
             arrowLateralOffset = skeleton.Joints[JointType.Head].Position.Y - skeleton.Joints[JointType.HipCenter].Position.Y;
 
-            rightArrowPosition.X += arrowLateralOffset;
-            leftArrowPosition.X -= arrowLateralOffset;
+            rightArrowPosition.X -= arrowLateralOffset;
+            leftArrowPosition.X += arrowLateralOffset;
 
             leftArrowPoint = this.SkeletonPointToScreen(rightArrowPosition);
             rightArrowPoint = this.SkeletonPointToScreen(leftArrowPosition);
@@ -551,41 +578,213 @@ namespace NPI_Kinect
             drawingContext.DrawImage(this.arrowUpward, new Rect( upArrowPoint, new Size(arrowBoxSize, arrowBoxSize)));
 
             // Then we pass the skeleton, dc, and positions of the arrows (their centers) to the routine that detects the choice and draws a cue
+            // Before that, we undo the corrections done for the boxes
+            leftArrowPoint.X += arrowBoxSize / 2;
+            leftArrowPoint.Y += arrowBoxSize / 2;
+
+            rightArrowPoint.X += arrowBoxSize / 2;
+            rightArrowPoint.Y += arrowBoxSize / 2;
+
+            upArrowPoint.X += arrowBoxSize / 2;
+            upArrowPoint.Y += arrowBoxSize / 2;
+
             int action = detectSelectionMenu(skeleton, drawingContext, leftArrowPoint, rightArrowPoint, upArrowPoint);
 
             // The user chose left
             if(action == 1)
             {
-
+                this.instructionsText.Text = "Estas en el menu principal 1";
             }
             // The user chose right
             else if (action == 2)
             {
-
+                this.instructionsText.Text = "Estas en el menu principal 2";
             }
-            // The user chose the current movement
+            // The user chose the current exercise
             else if (action == 3)
             {
                 // Make the menu change effective
-
+                this.instructionsText.Text = "Estas en el menu principal 3";
             }
 
-            this.instructionsText.Text="Estas en el menu principal";
+            //this.instructionsText.Text="Estas en el menu principal";
            
-
         }
 
 
         /// <summary>
-        /// Detects the motion of the user and translates it to a menu action, being 
+        /// Detects the motion of the user and translates it to a menu action, being 1 left, 2 right, 3 up (choose current)
         /// </summary>
         private int detectSelectionMenu(Skeleton skeleton, DrawingContext drawingContext, Point leftArrowPoint, Point rightArrowPoint, Point upArrowPoint)
         {
             int res = 0;
-            //First, we check if a hand has moved enough to qualify as the user choosing the current option
-            //if()
+            Brush upBrush, leftBrush, rightBrush;
+
+            // The three brushes default to red
+            upBrush = this.CueNotAchieved;
+            leftBrush = upBrush;
+            rightBrush = upBrush;
+
+            // We store the hands position for easier access
+            Point lHand, rHand;
+
+            lHand = this.SkeletonPointToScreen(skeleton.Joints[JointType.HandLeft].Position);
+            rHand = this.SkeletonPointToScreen(skeleton.Joints[JointType.HandRight].Position);
+
+
+            // It won't support simultaneous multi-choice, only the first option will be selected after a 2-3 seconds countdown marked by a red-orange-green color code via circle in the arrow
+            // The upper choice zone will be wider than the others, as the sensor experiences problems when the joints are directly over the head.
+            // We start by detecting a hand in the upper region
+            if (
+                    (Math.Abs(lHand.X - upArrowPoint.X) < (CueThickness * 10) * (1 + this.errorMargin)
+                    &&
+                    Math.Abs(lHand.Y - upArrowPoint.Y) < (CueThickness * 2) * (1 + this.errorMargin))
+                ||
+                    (Math.Abs(rHand.X - upArrowPoint.X) < (CueThickness * 10) * (1 + this.errorMargin)
+                    &&
+                    Math.Abs(rHand.Y - upArrowPoint.Y) < (CueThickness * 2) * (1 + this.errorMargin))
+                )
+            {
+                upBrush = CueAchieved;
+                // Change the timer count target to option 3 (up)
+                // We could put this condition in the outer if, for clarity I will separate it
+                if (this.timerTarget == 0)
+                    this.timerTarget = 3;
+            }
+            // If the target is 3, but the user has stopped the gesture, stop the timer
+            else if (timerTarget == 3)
+            {
+                this.timer1.Stop();
+                this.timerTarget = 0;
+            }
+
+            if (
+                    (Math.Abs(lHand.X - leftArrowPoint.X) < (CueThickness * 4) * (1 + this.errorMargin)
+                    &&
+                    Math.Abs(lHand.Y - leftArrowPoint.Y) < (CueThickness * 4) * (1 + this.errorMargin))
+                ||
+                    (Math.Abs(rHand.X - leftArrowPoint.X) < (CueThickness * 4) * (1 + this.errorMargin)
+                    &&
+                    Math.Abs(rHand.Y - leftArrowPoint.Y) > (CueThickness * 4) * (1 + this.errorMargin))
+                )
+            {
+                leftBrush = CueAchieved;
+                // Change the timer count target to option 1 (left)
+                // We could put this condition in the outer if, for clarity I will separate it
+                if (this.timerTarget == 0)
+                    this.timerTarget = 1;
+            }
+            // If the target is 1, but the user has stopped the gesture, stop the timer
+            else if (timerTarget == 1)
+            {
+                this.timer1.Stop();
+                this.timerTarget = 0;
+            }
+
+
+            if (
+                    (Math.Abs(lHand.X - rightArrowPoint.X) < (CueThickness * 4) * (1 + this.errorMargin)
+                    &&
+                    Math.Abs(lHand.Y - rightArrowPoint.Y) < (CueThickness * 4) * (1 + this.errorMargin))
+                ||
+                    (Math.Abs(rHand.X - rightArrowPoint.X) < (CueThickness * 4) * (1 + this.errorMargin)
+                    &&
+                    Math.Abs(rHand.Y - rightArrowPoint.Y) < (CueThickness * 4) * (1 + this.errorMargin))
+                )
+            {
+                rightBrush = CueAchieved;
+                // Change the timer count target to option 2 (right)
+                // We could put this condition in the outer if, for clarity I will separate it
+                if (this.timerTarget == 0)
+                    this.timerTarget = 2;
+            }
+            // If the target is 2, but the user has stopped the gesture, stop the timer and reset the target
+            else if (timerTarget == 2)
+            {
+                this.timer1.Stop();
+                this.timerTarget = 0;
+            }
+
+           // this.instructionsText.Text = "Target: " + this.timerTarget.ToString();
+
+            // Once we have set the target, we count 3 seconds, then change the result to the target, set the target to 0 and stop the timer 
+            // If the timer is not started, and the target is non-zero, we start the timer
+            if (this.timer1.Enabled == false && this.timerTarget != 0)
+            {
+                this.timer1.Stop();
+                this.startCountdown();
+                //this.instructionsText.Text = "cuenta iniciada";
+            }
+
+            else if (this.countDownFinished)
+            {
+                // When the timer counts the 3 seconds, we set the result to the target (the timer stops itself)
+                res = this.timerTarget;
+                this.timerTarget = 0;
+                this.timer1.Stop();
+            }
+
+            // Now we proceed to change the color of the cues to blue for the target while waiting and green to the result when the countdown ends
+            switch (res)
+            {
+                //The countdown has finished
+                case 1:
+                    leftBrush = this.CueAchieved;
+                    break;
+                case 2:
+                    rightBrush = this.CueAchieved;
+                    break;
+                case 3:
+                    upBrush = this.CueAchieved;
+                    break;
+
+                // The countdown has not finished
+                case 0:
+                    switch (this.timerTarget)
+                    {
+                        case 1:
+                            leftBrush = this.waitingBrush;
+                            break;
+                        case 2:
+                            rightBrush = this.waitingBrush;
+                            break;
+                        case 3:
+                            upBrush = this.waitingBrush;
+                            break;
+                    }
+                    break;
+            }
+            
+
+            //Once the detection is done, we draw the corresponding cues
+            drawingContext.DrawEllipse(upBrush, null, upArrowPoint, CueThickness, CueThickness);
+            drawingContext.DrawEllipse(leftBrush, null, leftArrowPoint, CueThickness, CueThickness);
+            drawingContext.DrawEllipse(rightBrush, null, rightArrowPoint, CueThickness, CueThickness);
+
 
             return res;
+        }
+
+        /// <summary>
+        /// Method to start a countdown
+        /// </summary>
+        private void startCountdown()
+        {
+            //Set the countdown state to not finished and start the timer
+            if(this.timer1.Enabled == false)
+            {
+                this.countDownFinished = false;
+                this.timer1.Start();
+            }
+        }
+
+        /// <summary>
+        /// Callback for the 3 seconds of the timer
+        /// </summary>
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            // Set the finalization flag to true
+            this.countDownFinished = true;
         }
 
         /// <summary>
@@ -593,10 +792,6 @@ namespace NPI_Kinect
         /// </summary>
         private void closeMenu()
         {
-            // Clear the menu visuals
-            //...
-            //no need :D
-            
 
             //Reset the tracking parameters
             this.poseAchieved = false;
