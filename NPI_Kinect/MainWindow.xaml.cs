@@ -51,6 +51,11 @@ namespace NPI_Kinect
         private int menuSelection = 0;
 
         /// <summary>
+        /// Size of the circular queue for the options menu
+        /// </summary>
+        private int menuOptionsCount = 2;
+
+        /// <summary>
         /// Variables to hold a max of 2 positions through calls
         /// </summary>
         private SkeletonPoint lastPosition1, lastPosition2;
@@ -593,21 +598,26 @@ namespace NPI_Kinect
             // The user chose left
             if(action == 1)
             {
-                this.instructionsText.Text = "Estas en el menu principal 1";
+                this.menuSelection--;
             }
             // The user chose right
             else if (action == 2)
             {
-                this.instructionsText.Text = "Estas en el menu principal 2";
+                this.menuSelection++;
             }
             // The user chose the current exercise
             else if (action == 3)
             {
-                // Make the menu change effective
-                this.instructionsText.Text = "Estas en el menu principal 3";
+                this.menuNumber=this.menuSelection;
             }
 
-            //this.instructionsText.Text="Estas en el menu principal";
+            //If the option goes below 1, it is set to the last option, if goes above the number of options, it is set to 1
+            if (this.menuSelection < 1)
+                this.menuSelection = this.menuOptionsCount;
+            else if (this.menuSelection > menuOptionsCount)
+                this.menuSelection = 1;
+
+            this.instructionsText.Text = "Opción del menú: " + this.menuNumber.ToString() ;
            
         }
 
