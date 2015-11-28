@@ -75,7 +75,7 @@ namespace NPI_Kinect
         /// <summary>
         /// Tracks
         /// </summary>
-        private bool gestureCompleted = false;
+        private bool repetitionCompleted = false;
 
         /// <summary>
         /// Repetition count for the exercise
@@ -522,6 +522,9 @@ namespace NPI_Kinect
                     case 1:
                         this.movementRoutine_1(skeleton, drawingContext);
                         break;
+                    case 2:
+                        this.movementRoutine_2(skeleton, drawingContext);
+                        break;
                     //... rest of routines
 
                     //Should any problem appear, go back to the menu
@@ -807,7 +810,7 @@ namespace NPI_Kinect
             //Reset the tracking parameters
             this.poseAchieved = false;
             this.endRoutine = false;
-            this.gestureCompleted = false;
+            this.repetitionCompleted = false;
 
             this.travelledDistance1 = 0;
             this.travelledDistance2 = 0;
@@ -827,17 +830,17 @@ namespace NPI_Kinect
             {
                 this.poseAchieved = this.pose_HoldHandsUp(skeleton, drawingContext);
                 //Set the gesture completion to false
-                this.gestureCompleted = false;
+                this.repetitionCompleted = false;
             }
             //Then, while the user doesn't break gesture, which we will consider to be lowering the hands below head joint height
-            else if (this.areHandsAboveHead(skeleton) && !this.gestureCompleted)
+            else if (this.areHandsAboveHead(skeleton) && !this.repetitionCompleted)
             {
                 //Once the user achieves the position, we will ask the user to make a gesture
                 //It will involve raising his hands roughly twice the distance between his head and chest joints
-                this.gestureCompleted = this.gesture_RaiseHands(skeleton, drawingContext);
+                this.repetitionCompleted = this.gesture_RaiseHands(skeleton, drawingContext);
             }
             // If the user finishes the gesture, the cycle resets, again to the static position
-            else if (this.gestureCompleted && (repetitionCount < this.targetRepetitions))
+            else if (this.repetitionCompleted && (repetitionCount < this.targetRepetitions))
             {
                 this.repetitionCount++;
                 this.updateRepetitionCount();
@@ -855,7 +858,65 @@ namespace NPI_Kinect
                 this.poseAchieved = false;
                 travelledDistance1 = 0.0f;
                 travelledDistance2 = 0.0f;
-                this.gestureCompleted = false;
+                this.repetitionCompleted = false;
+            }
+
+            //Update the hands' last positions
+            this.lastPosition1 = skeleton.Joints[JointType.HandLeft].Position;
+            this.lastPosition2 = skeleton.Joints[JointType.HandRight].Position;
+        }
+
+        /// <summary>
+        /// Maintained gesture exercise
+        /// </summary>
+        /// <param name="skeleton">skeleton for reference</param>
+        /// <param name="drawingContext">drawing context to draw to</param>
+        private void movementRoutine_2(Skeleton skeleton, DrawingContext drawingContext)
+        {
+            // We start from a arms relaxed, along the body position
+            
+            if(!this.poseAchieved)
+            {
+                this.poseAchieved = this.armsRelaxed(skeleton);
+            }
+            else if (this.poseAchieved && !this.repetitionCompleted)
+            {
+                // Stop the count if the user is not in the required pose
+                if (!this.pose_holdHandsExtended(skeleton, drawingContext))
+                    this.timer1.Stop();
+                // If the user is in the required pose, count three seconds
+                else
+                {
+                    //Start the comuntdown
+                    this.startCountdown();
+                    // If its finished
+                    if (this.countDownFinished)
+                    {
+                        //Set the repetition as finished
+                        this.repetitionCompleted = true;
+                    }
+                }
+            }
+            // If the user finishes the gesture, the cycle resets, and the user is asked to lower his/her arms
+            else if (this.repetitionCompleted && (this.repetitionCount < this.targetRepetitions))
+            {
+                this.repetitionCount++;
+                this.updateRepetitionCount();
+
+                //Reset the routine control parameters
+                this.resetParameters();
+
+                // Once the target reps. are achieved, go back to the menu
+                if (this.repetitionCount == this.targetRepetitions)
+                    this.menuNumber = 0;
+            }
+            // The user has broken gesture, we reset the pose and gesture completion parameters
+            else
+            {
+                this.poseAchieved = false;
+                travelledDistance1 = 0.0f;
+                travelledDistance2 = 0.0f;
+                this.repetitionCompleted = false;
             }
 
             //Update the hands' last positions
@@ -942,15 +1003,45 @@ namespace NPI_Kinect
         {
             return this.isRightHandAboveHead(skeleton) && this.isLeftHandAboveHead(skeleton);
         }
+
+        /// <summary>
+        /// Checks if the user's left hand is above his head
+        /// </summary>
         private bool isLeftHandAboveHead(Skeleton skeleton)
         {
             //We proceed to check if the left hand is above head height minus the rror margin
             return (skeleton.Joints[JointType.HandLeft].Position.Y > (1 - this.errorMargin) * skeleton.Joints[JointType.Head].Position.Y);
         }
+
+        /// <summary>
+        /// Checks if the user's right hand is above his head
+        /// </summary>
         private bool isRightHandAboveHead(Skeleton skeleton)
         {
             //We proceed to check if the left hand is above head height minus the rror margin
             return (skeleton.Joints[JointType.HandRight].Position.Y > (1 - this.errorMargin) * skeleton.Joints[JointType.Head].Position.Y);
+        }
+
+        /// <summary>
+        /// Checks if the user's arms are relaxed along the body (which we will consider when his hands are under hip height
+        /// </summary>
+        private bool armsRelaxed(Skeleton skeleton)
+        {
+            bool res=true;
+
+            // We take a threshold to pass as the hips average height
+            float threshold;
+
+            // We give the instructions
+            this.instructionsText.Text = "Relaja tus brazos a lo largo del cuerpo";
+    
+            threshold = (skeleton.Joints[JointType.HipLeft].Position.Y + skeleton.Joints[JointType.HipRight].Position.Y) / 2;
+
+            // This won't take into account the error margin, as the position is very easy to achieve due to the arms being longer than the torso
+            res = res && (skeleton.Joints[JointType.HandLeft].Position.Y < threshold);
+            res = res && (skeleton.Joints[JointType.HandRight].Position.Y < threshold);
+
+            return res;
         }
 
         //Utility functions***********************
@@ -965,7 +1056,7 @@ namespace NPI_Kinect
         private bool pose_HoldHandsUp(Skeleton skeleton, DrawingContext dc)
         {
             // We give the instructions
-            this.instructionsText.Text = "Mantén tus brazos paralelos al suelo\n y sube las manos hasta las marcas rojas";
+            this.instructionsText.Text = "Mantén tus brazos paralelos al suelo\n y sube las manos hasta las marcas";
 
             //Radius at wich the hands are considered to be in place
             float detectionRadius = 0.11f;
@@ -1036,6 +1127,112 @@ namespace NPI_Kinect
 
             return isLeftInPosition && isRightInPosition;
         }
+
+        
+
+        private bool pose_holdHandsExtended(Skeleton skeleton, DrawingContext dc)
+        {
+            // We give the instructions
+            this.instructionsText.Text = "Extiende tus brazos paralelos al suelo.";
+
+            //Radius at wich the hands are considered to be in place
+            float detectionRadius = 0.09f;
+
+            // Vertical distance hip-head
+            float verticalDistanceHipChest;
+
+            // Array containing both hands
+            Joint[] hands = new Joint[2];
+            // Booleans containing wether the hands are in the right position
+            bool isLeftInPosition = false, isRightInPosition = false;
+
+            // Store each hand in the array
+            hands[0] = skeleton.Joints[JointType.HandLeft];
+            hands[1] = skeleton.Joints[JointType.HandRight];
+
+
+            //Now we compute the position of the cues, wether the hands are in place, and draw the cues
+
+
+            // For the distance to the head we will take the twice the average (being 2 values, the combined lengths) horizontal distance of the chest to each shoulder plus shoulder lenght
+            //Now we have distance from head to shoulder (this one should be relatively stable, only changes by moving the scapulae)
+            verticalDistanceHipChest = ((skeleton.Joints[JointType.ShoulderCenter].Position.Y - skeleton.Joints[JointType.HipCenter].Position.Y))*2;
+
+
+            // We proceed to draw two cues at the desired position
+            SkeletonPoint leftCuePosition, rightCuePosition;
+            // Compute the position of the cues
+            //Take the head as a reference
+            leftCuePosition = skeleton.Joints[JointType.ShoulderCenter].Position;
+            rightCuePosition = leftCuePosition;
+
+            //Move the cue left or right the desired distance
+            leftCuePosition.X -= verticalDistanceHipChest;
+            rightCuePosition.X += verticalDistanceHipChest;
+
+            //If the hands are being tracked, we proceed to determine wether they are in the right place
+            if (hands[0].TrackingState.Equals(JointTrackingState.Tracked))
+            {
+                // Check if left hand is in place
+                if (
+                    (Math.Abs(hands[0].Position.X - leftCuePosition.X) < detectionRadius*(1+errorMargin))
+                    &&
+                    (Math.Abs(hands[0].Position.Y - leftCuePosition.Y) < detectionRadius*(1 + errorMargin))
+                    )
+                    isLeftInPosition = true;
+                else
+                    isLeftInPosition = false;
+            }
+
+            if (hands[1].TrackingState.Equals(JointTrackingState.Tracked))
+            {
+                // Check if left hand is in place
+                if (
+                    (Math.Abs(hands[1].Position.X - rightCuePosition.X) < detectionRadius * (1 + errorMargin))
+                    &&
+                    (Math.Abs(hands[1].Position.Y - rightCuePosition.Y) < detectionRadius * (1 + errorMargin))
+                    )
+                    isRightInPosition = true;
+                else
+                    isRightInPosition = false;
+            }
+
+            // We will now draw a visual cue for each hand's placement
+            // The ideal method would take an array of cues, and array of colors, and the drawingcontext in which they are to be drawn 
+            this.drawCues_holdHandsExtended(leftCuePosition, rightCuePosition, dc, isLeftInPosition, isRightInPosition);
+
+            return isLeftInPosition && isRightInPosition;
+        }
+
+        /// <summary>
+        /// Draws the cues for the position
+        /// </summary>
+        /// <param name="leftCuePosition">position of left cue</param>
+        /// <param name="rightCuePosition">position of right cue</param>
+        /// <param name="drawingContext">drawing context to draw to</param>
+        /// <param name="left">wether left hand is in place</param>
+        /// <param name="right">wether right hand is in place</param>
+        private void drawCues_holdHandsExtended(SkeletonPoint leftCuePosition, SkeletonPoint rightCuePosition, DrawingContext dc, bool left, bool right)
+        {
+            Brush drawBrush;
+
+            //Left cue
+            if (left)
+                drawBrush = this.waitingBrush;
+            else
+                drawBrush = this.CueNotAchieved;
+
+            dc.DrawEllipse(drawBrush, null, this.SkeletonPointToScreen(leftCuePosition), CueThickness, CueThickness);
+
+            //Right Cue
+            if (right)
+                drawBrush = this.waitingBrush;
+            else
+                drawBrush = this.CueNotAchieved;
+
+            dc.DrawEllipse(drawBrush, null, this.SkeletonPointToScreen(rightCuePosition), CueThickness, CueThickness);
+        }
+
 
         /// <summary>
         /// Draws the cues for the position
