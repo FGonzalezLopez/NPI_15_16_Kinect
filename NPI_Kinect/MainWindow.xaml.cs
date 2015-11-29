@@ -61,9 +61,9 @@ namespace NPI_Kinect
         private SkeletonPoint lastPosition1, lastPosition2;
 
         /// <summary>
-        /// Tracks wether a exercise routine is finished
+        /// The size of the different icons' boxes
         /// </summary>
-        private bool endRoutine = false;
+        private float iconBoxSize = 100;
 
         /// <summary>
         /// Tracks wether the user is positioned correctly
@@ -133,6 +133,16 @@ namespace NPI_Kinect
         /// Imagen of home icon
         /// </summary>
         private ImageSource homeIcon;
+
+        /// <summary>
+        /// Imagen of exer. 1 icon
+        /// </summary>
+        private ImageSource ej1Icon;
+
+        /// <summary>
+        /// Imagen of exer. 2 icon
+        /// </summary>
+        private ImageSource ej2Icon;
 
 
 
@@ -425,6 +435,8 @@ namespace NPI_Kinect
             this.arrowRightward =new BitmapImage(new Uri(@"..\..\resources\arrow_right.png", UriKind.Relative));
             this.arrowUpward = new BitmapImage(new Uri(@"..\..\resources\arrow_up.png", UriKind.Relative));
             this.homeIcon = new BitmapImage(new Uri(@"..\..\resources\home.png", UriKind.Relative));
+            this.ej1Icon = new BitmapImage(new Uri(@"..\..\resources\ej1.png", UriKind.Relative));
+            this.ej2Icon = new BitmapImage(new Uri(@"..\..\resources\ej2.png", UriKind.Relative));
         }
 
         /// <summary>
@@ -567,7 +579,6 @@ namespace NPI_Kinect
             //...
             SkeletonPoint rightArrowPosition, leftArrowPosition, upArrowPosition;
             Point leftArrowPoint, rightArrowPoint, upArrowPoint;
-            float iconBoxSize = 100;
 
             // For the upwards arrow we take a base height of head, and then add the head to chest height
             upArrowPosition = skeleton.Joints[JointType.Head].Position;
@@ -591,30 +602,30 @@ namespace NPI_Kinect
             upArrowPoint = this.SkeletonPointToScreen(upArrowPosition);
 
             // We compensate for the fact that the arrows are painted using the point as the upper left corner
-            leftArrowPoint.X -= iconBoxSize / 2;
-            leftArrowPoint.Y -= iconBoxSize / 2;
+            leftArrowPoint.X -= this.iconBoxSize / 2;
+            leftArrowPoint.Y -= this.iconBoxSize / 2;
 
-            rightArrowPoint.X -= iconBoxSize / 2;
-            rightArrowPoint.Y -= iconBoxSize / 2;
+            rightArrowPoint.X -= this.iconBoxSize / 2;
+            rightArrowPoint.Y -= this.iconBoxSize / 2;
 
-            upArrowPoint.X -= iconBoxSize / 2;
-            upArrowPoint.Y -= iconBoxSize / 2;
+            upArrowPoint.X -= this.iconBoxSize / 2;
+            upArrowPoint.Y -= this.iconBoxSize / 2;
 
 
-            drawingContext.DrawImage(this.arrowRightward, new Rect( rightArrowPoint, new Size(iconBoxSize, iconBoxSize)));
-            drawingContext.DrawImage(this.arrowLeftward, new Rect( leftArrowPoint, new Size(iconBoxSize,iconBoxSize)));
-            drawingContext.DrawImage(this.arrowUpward, new Rect( upArrowPoint, new Size(iconBoxSize, iconBoxSize)));
+            drawingContext.DrawImage(this.arrowRightward, new Rect( rightArrowPoint, new Size(this.iconBoxSize, this.iconBoxSize)));
+            drawingContext.DrawImage(this.arrowLeftward, new Rect( leftArrowPoint, new Size(this.iconBoxSize,this.iconBoxSize)));
+            drawingContext.DrawImage(this.arrowUpward, new Rect( upArrowPoint, new Size(this.iconBoxSize, this.iconBoxSize)));
 
             // Then we pass the skeleton, dc, and positions of the arrows (their centers) to the routine that detects the choice and draws a cue
             // Before that, we undo the corrections done for the boxes
-            leftArrowPoint.X += iconBoxSize / 2;
-            leftArrowPoint.Y += iconBoxSize / 2;
+            leftArrowPoint.X += this.iconBoxSize / 2;
+            leftArrowPoint.Y += this.iconBoxSize / 2;
 
-            rightArrowPoint.X += iconBoxSize / 2;
-            rightArrowPoint.Y += iconBoxSize / 2;
+            rightArrowPoint.X += this.iconBoxSize / 2;
+            rightArrowPoint.Y += this.iconBoxSize / 2;
 
-            upArrowPoint.X += iconBoxSize / 2;
-            upArrowPoint.Y += iconBoxSize / 2;
+            upArrowPoint.X += this.iconBoxSize / 2;
+            upArrowPoint.Y += this.iconBoxSize / 2;
 
             int action = detectSelectionMenu(skeleton, drawingContext, leftArrowPoint, rightArrowPoint, upArrowPoint);
 
@@ -633,6 +644,24 @@ namespace NPI_Kinect
             {
                 this.menuNumber=this.menuSelection;
             }
+        
+
+            // Show the image for the exercise
+            ImageSource exerciseImage = this.homeIcon;
+
+
+            switch (menuSelection)
+            {
+                case 1:
+                    exerciseImage = this.ej1Icon;
+                    break;
+                case 2:
+                    exerciseImage = this.ej2Icon;
+                    break;
+            }
+
+            this.drawExerciseImage(skeleton, drawingContext,exerciseImage);
+
 
             //If the option goes below 1, it is set to the last option, if goes above the number of options, it is set to 1
             if (this.menuSelection < 1)
@@ -642,6 +671,22 @@ namespace NPI_Kinect
 
             this.instructionsText.Text = "Opción del menú: " + this.menuSelection.ToString() ;
            
+        }
+
+        private void drawExerciseImage(Skeleton skeleton, DrawingContext drawingcontext, ImageSource image)
+        {
+            SkeletonPoint iconPosition;
+            // We take the center hip as base point
+            iconPosition = skeleton.Joints[JointType.HipCenter].Position;
+
+            Point drawingPoint = this.SkeletonPointToScreen(iconPosition);
+
+            // We compensate for the fact that the arrows are painted using the point as the upper left corner
+            drawingPoint.X -= this.iconBoxSize / 2;
+            drawingPoint.Y -= this.iconBoxSize / 2;
+
+            // We finally draw the icon in the desired position
+            drawingcontext.DrawImage(image, new Rect(drawingPoint, new Size(this.iconBoxSize, this.iconBoxSize)));
         }
 
 
@@ -800,7 +845,7 @@ namespace NPI_Kinect
             //...
             SkeletonPoint homePosition;
             Point homePoint;
-            float iconBoxSize = 100;
+            
 
             // For the upwards arrow we take a base height of head, and then add the head to chest height
             homePosition = skeleton.Joints[JointType.Head].Position;
@@ -814,15 +859,15 @@ namespace NPI_Kinect
             homePoint = this.SkeletonPointToScreen(homePosition);
 
             // We compensate for the fact that the arrows are painted using the point as the upper left corner
-            homePoint.X -= iconBoxSize / 2;
-            homePoint.Y -= iconBoxSize / 2;
+            homePoint.X -= this.iconBoxSize / 2;
+            homePoint.Y -= this.iconBoxSize / 2;
 
-            drawingContext.DrawImage(this.homeIcon, new Rect(homePoint, new Size(iconBoxSize, iconBoxSize)));
+            drawingContext.DrawImage(this.homeIcon, new Rect(homePoint, new Size(this.iconBoxSize, this.iconBoxSize)));
 
             // Then we pass the skeleton, dc, and positions of the icon (its center) to the routine that detects the choice and draws a cue
             // Before that, we undo the corrections done for the boxes
-            homePoint.X += iconBoxSize / 2;
-            homePoint.Y += iconBoxSize / 2;
+            homePoint.X += this.iconBoxSize / 2;
+            homePoint.Y += this.iconBoxSize / 2;
 
             // Finally, we check if the user has pressed the button for 3 seconds and go back to the menu
             if (detectHomePressed(skeleton, drawingContext, homePoint))
@@ -920,7 +965,6 @@ namespace NPI_Kinect
 
             //Reset the tracking parameters
             this.poseAchieved = false;
-            this.endRoutine = false;
             this.repetitionCompleted = false;
 
             this.travelledDistance1 = 0;
