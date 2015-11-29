@@ -124,6 +124,12 @@ namespace NPI_Kinect
         /// </summary>
         private ImageSource arrowUpward;
 
+        /// <summary>
+        /// Imagen of home icon
+        /// </summary>
+        private ImageSource homeIcon;
+
+
 
         /// <summary>
         /// Brush used for drawing visual cues to indicate a wait
@@ -305,7 +311,7 @@ namespace NPI_Kinect
             Skeleton.Source = this.imageSource;
 
             //Initialize the images
-            this.initializeImages();
+            this.initializeResources();
 
             // Initialize the timer
             this.waitingTime = 3000;
@@ -404,11 +410,12 @@ namespace NPI_Kinect
         /// <summary>
         /// Initializes image brushes (arrows)
         /// </summary>
-        private void initializeImages()
+        private void initializeResources()
         {
-            this.arrowLeftward = new BitmapImage(new Uri(@"C:\Users\NotPotato\Pictures\arrow_left.png", UriKind.Relative));
-            this.arrowRightward =new BitmapImage(new Uri(@"C:\Users\NotPotato\Pictures\arrow_right.png", UriKind.Relative));
-            this.arrowUpward = new BitmapImage(new Uri(@"C:\Users\NotPotato\Pictures\arrow_up.png", UriKind.Relative));
+            this.arrowLeftward = new BitmapImage(new Uri(@"..\..\resources\arrow_left.png", UriKind.Relative));
+            this.arrowRightward =new BitmapImage(new Uri(@"..\..\resources\arrow_right.png", UriKind.Relative));
+            this.arrowUpward = new BitmapImage(new Uri(@"..\..\resources\arrow_up.png", UriKind.Relative));
+            this.homeIcon = new BitmapImage(new Uri(@"..\..\resources\home.png", UriKind.Relative));
         }
 
         /// <summary>
@@ -494,6 +501,8 @@ namespace NPI_Kinect
         /// <param name="drawingContext">drawing context to draw to</param>
         private void menuRoutine(Skeleton skeleton, DrawingContext drawingContext)
         {
+            //The first thing to do is check if the user wants to go back to the menu (home) from an exercise
+            //this.homeButton(skeleton, drawingContext);
             // We assume that the skeleton is being correctly tracked, as this is called from within that condition
             // We will now check the person's position and make the required corrections
             if (!minDistance(skeleton))
@@ -540,7 +549,7 @@ namespace NPI_Kinect
         
 
         /// <summary>
-        /// Close the menu and do the initial setup tasks for a routine tracking
+        /// Draws and detects the choices of the menu
         /// </summary>
         private void optionMenu(Skeleton skeleton, DrawingContext drawingContext)
         {
@@ -548,7 +557,7 @@ namespace NPI_Kinect
             //...
             SkeletonPoint rightArrowPosition, leftArrowPosition, upArrowPosition;
             Point leftArrowPoint, rightArrowPoint, upArrowPoint;
-            float arrowBoxSize = 100;
+            float iconBoxSize = 100;
 
             // For the upwards arrow we take a base height of head, and then add the head to chest height
             upArrowPosition = skeleton.Joints[JointType.Head].Position;
@@ -572,30 +581,30 @@ namespace NPI_Kinect
             upArrowPoint = this.SkeletonPointToScreen(upArrowPosition);
 
             // We compensate for the fact that the arrows are painted using the point as the upper left corner
-            leftArrowPoint.X -= arrowBoxSize / 2;
-            leftArrowPoint.Y -= arrowBoxSize / 2;
+            leftArrowPoint.X -= iconBoxSize / 2;
+            leftArrowPoint.Y -= iconBoxSize / 2;
 
-            rightArrowPoint.X -= arrowBoxSize / 2;
-            rightArrowPoint.Y -= arrowBoxSize / 2;
+            rightArrowPoint.X -= iconBoxSize / 2;
+            rightArrowPoint.Y -= iconBoxSize / 2;
 
-            upArrowPoint.X -= arrowBoxSize / 2;
-            upArrowPoint.Y -= arrowBoxSize / 2;
+            upArrowPoint.X -= iconBoxSize / 2;
+            upArrowPoint.Y -= iconBoxSize / 2;
 
 
-            drawingContext.DrawImage(this.arrowRightward, new Rect( rightArrowPoint, new Size(arrowBoxSize, arrowBoxSize)));
-            drawingContext.DrawImage(this.arrowLeftward, new Rect( leftArrowPoint, new Size(arrowBoxSize,arrowBoxSize)));
-            drawingContext.DrawImage(this.arrowUpward, new Rect( upArrowPoint, new Size(arrowBoxSize, arrowBoxSize)));
+            drawingContext.DrawImage(this.arrowRightward, new Rect( rightArrowPoint, new Size(iconBoxSize, iconBoxSize)));
+            drawingContext.DrawImage(this.arrowLeftward, new Rect( leftArrowPoint, new Size(iconBoxSize,iconBoxSize)));
+            drawingContext.DrawImage(this.arrowUpward, new Rect( upArrowPoint, new Size(iconBoxSize, iconBoxSize)));
 
             // Then we pass the skeleton, dc, and positions of the arrows (their centers) to the routine that detects the choice and draws a cue
             // Before that, we undo the corrections done for the boxes
-            leftArrowPoint.X += arrowBoxSize / 2;
-            leftArrowPoint.Y += arrowBoxSize / 2;
+            leftArrowPoint.X += iconBoxSize / 2;
+            leftArrowPoint.Y += iconBoxSize / 2;
 
-            rightArrowPoint.X += arrowBoxSize / 2;
-            rightArrowPoint.Y += arrowBoxSize / 2;
+            rightArrowPoint.X += iconBoxSize / 2;
+            rightArrowPoint.Y += iconBoxSize / 2;
 
-            upArrowPoint.X += arrowBoxSize / 2;
-            upArrowPoint.Y += arrowBoxSize / 2;
+            upArrowPoint.X += iconBoxSize / 2;
+            upArrowPoint.Y += iconBoxSize / 2;
 
             int action = detectSelectionMenu(skeleton, drawingContext, leftArrowPoint, rightArrowPoint, upArrowPoint);
 
@@ -659,7 +668,6 @@ namespace NPI_Kinect
                     Math.Abs(rHand.Y - upArrowPoint.Y) < (CueThickness * 2) * (1 + this.errorMargin))
                 )
             {
-                upBrush = CueAchieved;
                 // Change the timer count target to option 3 (up)
                 // We could put this condition in the outer if, for clarity I will separate it
                 if (this.timerTarget == 0)
@@ -682,7 +690,6 @@ namespace NPI_Kinect
                     Math.Abs(rHand.Y - leftArrowPoint.Y) > (CueThickness * 4) * (1 + this.errorMargin))
                 )
             {
-                leftBrush = CueAchieved;
                 // Change the timer count target to option 1 (left)
                 // We could put this condition in the outer if, for clarity I will separate it
                 if (this.timerTarget == 0)
@@ -706,7 +713,6 @@ namespace NPI_Kinect
                     Math.Abs(rHand.Y - rightArrowPoint.Y) < (CueThickness * 4) * (1 + this.errorMargin))
                 )
             {
-                rightBrush = CueAchieved;
                 // Change the timer count target to option 2 (right)
                 // We could put this condition in the outer if, for clarity I will separate it
                 if (this.timerTarget == 0)
@@ -725,11 +731,8 @@ namespace NPI_Kinect
             // If the timer is not started, and the target is non-zero, we start the timer
             if (this.timer1.Enabled == false && this.timerTarget != 0)
             {
-                this.timer1.Stop();
                 this.startCountdown();
-                //this.instructionsText.Text = "cuenta iniciada";
             }
-
             else if (this.countDownFinished)
             {
                 // When the timer counts the 3 seconds, we set the result to the target (the timer stops itself)
@@ -780,6 +783,101 @@ namespace NPI_Kinect
         }
 
         /// <summary>
+        /// Go back to the menu 
+        /// </summary>
+        private void homeButton(Skeleton skeleton, DrawingContext drawingContext)
+        {
+            // Detect and show the home button
+            //...
+            SkeletonPoint homePosition;
+            Point homePoint;
+            float iconBoxSize = 100;
+
+            // For the upwards arrow we take a base height of head, and then add the head to chest height
+            homePosition = skeleton.Joints[JointType.Head].Position;
+
+            // Then move the icon to where we want it
+
+
+            homePoint = this.SkeletonPointToScreen(homePosition);
+
+            // We compensate for the fact that the arrows are painted using the point as the upper left corner
+            homePoint.X -= iconBoxSize / 2;
+            homePoint.Y -= iconBoxSize / 2;
+
+            drawingContext.DrawImage(this.homeIcon, new Rect(homePoint, new Size(iconBoxSize, iconBoxSize)));
+
+            // Then we pass the skeleton, dc, and positions of the icon (its center) to the routine that detects the choice and draws a cue
+            // Before that, we undo the corrections done for the boxes
+            homePoint.X += iconBoxSize / 2;
+            homePoint.Y += iconBoxSize / 2;
+
+            // Finally, we check if the user has pressed the button for 3 seconds and go back to the menu
+            if (detectHomePressed(skeleton, drawingContext, homePoint))
+                this.menuNumber = 0;
+        }
+
+        /// <summary>
+        /// Draws a visual cue for the home button and detects wether it has been pressed or not
+        /// </summary>
+        private bool detectHomePressed(Skeleton skeleton, DrawingContext drawingContext, Point homePoint)
+        {
+            bool homePressed = false;
+            bool goHome = false;
+            Brush homeBrush = this.CueNotAchieved;
+
+            // Each hand's positions
+            Point lHand, rHand;
+
+            lHand = this.SkeletonPointToScreen(skeleton.Joints[JointType.HandLeft].Position);
+            rHand = this.SkeletonPointToScreen(skeleton.Joints[JointType.HandRight].Position);
+
+
+            //First we check if either hand is on the button
+            //Left hand
+            homePressed = homePressed ||
+                    (Math.Abs(lHand.X - homePoint.X) < (CueThickness * 4) * (1 + this.errorMargin)
+                    &&
+                    Math.Abs(lHand.Y - homePoint.Y) < (CueThickness * 4) * (1 + this.errorMargin));
+            //Right hand
+            homePressed = homePressed ||
+                    (Math.Abs(rHand.X - homePoint.X) < (CueThickness * 4) * (1 + this.errorMargin)
+                    &&
+                    Math.Abs(rHand.Y - homePoint.Y) < (CueThickness * 4) * (1 + this.errorMargin));
+
+            // If the home button is pressed, we start a countdown
+            if(homePressed)
+            {
+                this.startCountdown();
+                // If the countdown has finished, stop the timer and activate goHome
+                if (this.countDownFinished)
+                {
+                    goHome = true;
+                    this.timer1.Stop();
+                }
+            }
+            // If it's not, stop the countdown
+            // I don't know if it's cheaper to check if the timer is running and then stop it if it is, or the Stop() method handles it equally or even better). I'll assume MS knows best.
+            else
+            {
+                this.timer1.Stop();
+            }
+
+            if(homePressed)
+            {
+                if (goHome)
+                    homeBrush = CueAchieved;
+                else
+                    homeBrush = waitingBrush;
+            }
+
+            //Once the detection is done, we draw the corresponding cues
+            drawingContext.DrawEllipse(homeBrush, null, homePoint, CueThickness, CueThickness);
+
+            return goHome;
+        }
+
+        /// <summary>
         /// Method to start a countdown
         /// </summary>
         private void startCountdown()
@@ -802,7 +900,7 @@ namespace NPI_Kinect
         }
 
         /// <summary>
-        /// Close the menu and do the initial setup tasks for a routine tracking
+        /// Do the initial setup tasks for a routine's tracking
         /// </summary>
         private void resetParameters()
         {
@@ -894,6 +992,7 @@ namespace NPI_Kinect
                     {
                         //Set the repetition as finished
                         this.repetitionCompleted = true;
+                        this.timer1.Stop();
                     }
                 }
             }
