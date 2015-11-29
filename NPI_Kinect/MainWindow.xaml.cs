@@ -1269,7 +1269,7 @@ namespace NPI_Kinect
 
             // For the distance to the head we will take the twice the average (being 2 values, the combined lengths) horizontal distance of the chest to each shoulder plus shoulder lenght
             //Now we have distance from head to shoulder (this one should be relatively stable, only changes by moving the scapulae)
-            verticalDistanceHipChest = ((skeleton.Joints[JointType.ShoulderCenter].Position.Y - skeleton.Joints[JointType.HipCenter].Position.Y))*2;
+            verticalDistanceHipChest = ((skeleton.Joints[JointType.ShoulderCenter].Position.Y - skeleton.Joints[JointType.HipCenter].Position.Y))*1.75f;
 
 
             // We proceed to draw two cues at the desired position
