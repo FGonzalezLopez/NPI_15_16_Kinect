@@ -93,6 +93,11 @@ namespace NPI_Kinect
         private System.Windows.Forms.Timer timer1;
 
         /// <summary>
+        /// Timer for home button counter (must be sepparate)
+        /// </summary>
+        private System.Windows.Forms.Timer timerHome;
+
+        /// <summary>
         /// Indicates towards which option is the timer counting, 1 left 2 right 3 up
         /// </summary>
         private int timerTarget=0;
@@ -316,10 +321,14 @@ namespace NPI_Kinect
             // Initialize the timer
             this.waitingTime = 3000;
             this.timer1 = new System.Windows.Forms.Timer();
-            this.timer1.Tick += new EventHandler(timer1_Tick);
+            this.timer1.Tick += new EventHandler(timer_Tick);
             this.timer1.Interval = this.waitingTime;
 
-            
+            this.timerHome = new System.Windows.Forms.Timer();
+            this.timerHome.Tick += new EventHandler(home_Tick);
+            this.timerHome.Interval = this.waitingTime;
+
+
 
 
             //Set the difficulty and error margins to their defaults upon opening the program
@@ -501,13 +510,14 @@ namespace NPI_Kinect
         /// <param name="drawingContext">drawing context to draw to</param>
         private void menuRoutine(Skeleton skeleton, DrawingContext drawingContext)
         {
-            //The first thing to do is check if the user wants to go back to the menu (home) from an exercise
-            //this.homeButton(skeleton, drawingContext);
+            // First we check if the user wants to go back to the menu (home) from an exercise
+            this.homeButton(skeleton, drawingContext);
+
             // We assume that the skeleton is being correctly tracked, as this is called from within that condition
             // We will now check the person's position and make the required corrections
             if (!minDistance(skeleton))
                 this.setDistance(skeleton);
-            //If either hand go untracked, we restart and go back to the menu
+            //If either hand goes untracked, we restart and go back to the menu
             else if( skeleton.Joints[JointType.HandLeft].TrackingState.Equals(JointTrackingState.NotTracked) 
                     ||
                      skeleton.Joints[JointType.HandRight].TrackingState.Equals(JointTrackingState.NotTracked) )
@@ -725,8 +735,6 @@ namespace NPI_Kinect
                 this.timerTarget = 0;
             }
 
-           // this.instructionsText.Text = "Target: " + this.timerTarget.ToString();
-
             // Once we have set the target, we count 3 seconds, then change the result to the target, set the target to 0 and stop the timer 
             // If the timer is not started, and the target is non-zero, we start the timer
             if (this.timer1.Enabled == false && this.timerTarget != 0)
@@ -739,6 +747,7 @@ namespace NPI_Kinect
                 res = this.timerTarget;
                 this.timerTarget = 0;
                 this.timer1.Stop();
+                this.countDownFinished = false;
             }
 
             // Now we proceed to change the color of the cues to blue for the target while waiting and green to the result when the countdown ends
@@ -797,7 +806,10 @@ namespace NPI_Kinect
             homePosition = skeleton.Joints[JointType.Head].Position;
 
             // Then move the icon to where we want it
-
+            // First, we translate it upwards the "neck" length (head to chest distance)
+            homePosition.Y += skeleton.Joints[JointType.Head].Position.Y - skeleton.Joints[JointType.ShoulderCenter].Position.Y;
+            //Then, move it to the left two torsos (chest to hip distance)
+            homePosition.X -= (skeleton.Joints[JointType.ShoulderCenter].Position.Y - skeleton.Joints[JointType.HipCenter].Position.Y)*2;
 
             homePoint = this.SkeletonPointToScreen(homePosition);
 
@@ -814,7 +826,12 @@ namespace NPI_Kinect
 
             // Finally, we check if the user has pressed the button for 3 seconds and go back to the menu
             if (detectHomePressed(skeleton, drawingContext, homePoint))
+            {
                 this.menuNumber = 0;
+                // Redundant?
+                this.timer1.Stop();
+            }
+                
         }
 
         /// <summary>
@@ -822,8 +839,11 @@ namespace NPI_Kinect
         /// </summary>
         private bool detectHomePressed(Skeleton skeleton, DrawingContext drawingContext, Point homePoint)
         {
+            // Flag to control if the home button is being pressed
             bool homePressed = false;
+            // Flag to control the result of the call (go home or not)
             bool goHome = false;
+            // Brush to draw with
             Brush homeBrush = this.CueNotAchieved;
 
             // Each hand's positions
@@ -845,31 +865,13 @@ namespace NPI_Kinect
                     &&
                     Math.Abs(rHand.Y - homePoint.Y) < (CueThickness * 4) * (1 + this.errorMargin));
 
-            // If the home button is pressed, we start a countdown
-            if(homePressed)
-            {
-                this.startCountdown();
-                // If the countdown has finished, stop the timer and activate goHome
-                if (this.countDownFinished)
-                {
-                    goHome = true;
-                    this.timer1.Stop();
-                }
-            }
-            // If it's not, stop the countdown
-            // I don't know if it's cheaper to check if the timer is running and then stop it if it is, or the Stop() method handles it equally or even better). I'll assume MS knows best.
-            else
-            {
-                this.timer1.Stop();
-            }
+            
+            this.timerHome.Enabled = homePressed;
 
+            // Decide which brush should we use based on the button status (if none of this conditions check out, the brush stays red)
             if(homePressed)
-            {
-                if (goHome)
-                    homeBrush = CueAchieved;
-                else
-                    homeBrush = waitingBrush;
-            }
+                homeBrush = waitingBrush;
+
 
             //Once the detection is done, we draw the corresponding cues
             drawingContext.DrawEllipse(homeBrush, null, homePoint, CueThickness, CueThickness);
@@ -893,11 +895,22 @@ namespace NPI_Kinect
         /// <summary>
         /// Callback for the 3 seconds of the timer
         /// </summary>
-        private void timer1_Tick(object sender, EventArgs e)
+        private void timer_Tick(object sender, EventArgs e)
         {
             // Set the finalization flag to true
             this.countDownFinished = true;
         }
+
+        /// <summary>
+        /// Callback for the 3 seconds of the home timer, sets the option menu directly to 0 (menu)
+        /// </summary>
+        private void home_Tick(object sender, EventArgs e)
+        {
+            this.menuNumber = 0;
+            this.timerHome.Stop();
+        }
+
+
 
         /// <summary>
         /// Do the initial setup tasks for a routine's tracking
@@ -993,6 +1006,7 @@ namespace NPI_Kinect
                         //Set the repetition as finished
                         this.repetitionCompleted = true;
                         this.timer1.Stop();
+                        this.countDownFinished = false;
                     }
                 }
             }
