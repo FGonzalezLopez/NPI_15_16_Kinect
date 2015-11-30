@@ -582,7 +582,7 @@ namespace NPI_Kinect
 
             // For the upwards arrow we take a base height of head, and then add the head to chest height
             upArrowPosition = skeleton.Joints[JointType.Head].Position;
-            upArrowPosition.Y += (skeleton.Joints[JointType.Head].Position.Y - skeleton.Joints[JointType.ShoulderCenter].Position.Y);
+            upArrowPosition.Y += (skeleton.Joints[JointType.Head].Position.Y - skeleton.Joints[JointType.ShoulderCenter].Position.Y)*2;
 
             // We take a base height halfway between hip and head for the left/right arrows
             rightArrowPosition = skeleton.Joints[JointType.HipCenter].Position;
@@ -678,6 +678,8 @@ namespace NPI_Kinect
             SkeletonPoint iconPosition;
             // We take the center hip as base point
             iconPosition = skeleton.Joints[JointType.HipCenter].Position;
+
+            iconPosition.Y -= (skeleton.Joints[JointType.Head].Position.Y - skeleton.Joints[JointType.HipCenter].Position.Y)/4;
 
             Point drawingPoint = this.SkeletonPointToScreen(iconPosition);
 
