@@ -381,7 +381,7 @@ namespace NPI_Kinect
                 };
 
                 // Turn on the skeleton stream to receive skeleton frames
-                this.sensor.SkeletonStream.Enable();
+                this.sensor.SkeletonStream.Enable(smoothingParam);
 
                 // Add an event handler to be called whenever there is new color frame data
                 this.sensor.SkeletonFrameReady += this.SensorSkeletonFrameReady;
